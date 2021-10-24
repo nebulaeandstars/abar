@@ -15,7 +15,7 @@ pub struct StatusBlock
 impl StatusBlock
 {
     /// Returns whether the StatusBlock is due to be updated.
-    fn needs_update(&self) -> bool
+    pub fn needs_update(&self) -> bool
     {
         if self.last_update.is_none() || self.update_interval.is_none() {
             self.update_interval.is_some()
@@ -30,12 +30,15 @@ impl StatusBlock
     }
 
     /// Updates the StatusBlock iff it's scheduled to be updated.
-    fn update(&mut self)
+    pub fn update(&mut self)
     {
         if self.needs_update() {
-            self.cache = (self.command)();
+            self.update_now();
         }
     }
+
+    /// Updates the StatusBlock immediately, ignoring the timer.
+    pub fn update_now(&mut self) { self.cache = (self.command)(); }
 }
 
 impl Default for StatusBlock
@@ -102,6 +105,16 @@ mod tests
         std::thread::sleep(interval * 4);
 
         block.update();
+        assert_eq!(block.to_string(), "test");
+    }
+
+    #[test]
+    fn test_statusblock_update_now()
+    {
+        let mut block = StatusBlock::default();
+        block.command = || String::from("test");
+        block.update_now();
+
         assert_eq!(block.to_string(), "test");
     }
 }

@@ -29,9 +29,15 @@ impl fmt::Display for StatusBar
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
-        let mut out = String::new();
+        let mut out = self.left_buffer.clone();
 
-        self.blocks.iter().for_each(|block| out.push_str(&block.to_string()));
+        self.blocks.iter().enumerate().for_each(|(i, block)| {
+            if i > 0 && i < self.blocks.len() {
+                out.push_str(&self.delimiter);
+            }
+            out.push_str(&block.to_string())
+        });
+        out.push_str(&self.right_buffer);
 
         write!(f, "{}", out)
     }
@@ -67,5 +73,24 @@ mod tests
         bar.blocks.push(block2);
 
         assert_eq!(bar.to_string(), "test1test2");
+    }
+
+    #[test]
+    fn display_draws_delimiters()
+    {
+        let mut bar = StatusBar::default();
+        bar.delimiter = String::from(" | ");
+        bar.left_buffer = String::from(" >>> ");
+        bar.right_buffer = String::from(" <<< ");
+
+        let mut block1 = StatusBlock::default();
+        let mut block2 = StatusBlock::default();
+        block1.cache = String::from("test1");
+        block2.cache = String::from("test2");
+
+        bar.blocks.push(block1);
+        bar.blocks.push(block2);
+
+        assert_eq!(bar.to_string(), " >>> test1 | test2 <<< ");
     }
 }

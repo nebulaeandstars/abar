@@ -38,7 +38,11 @@ impl StatusBlock
     }
 
     /// Updates the StatusBlock immediately, ignoring the timer.
-    pub fn update_now(&mut self) { self.cache = (self.command)(); }
+    pub fn update_now(&mut self)
+    {
+        self.cache = (self.command)();
+        self.last_update = Some(Instant::now());
+    }
 }
 
 impl Default for StatusBlock
@@ -116,5 +120,21 @@ mod tests
         block.update_now();
 
         assert_eq!(block.to_string(), "test");
+    }
+
+    #[test]
+    fn test_statusblock_last_update_is_changed()
+    {
+        let mut block = StatusBlock::default();
+        assert_eq!(block.last_update, None);
+
+        block.command = || String::from("test");
+        block.update_now();
+        assert!(block.last_update.is_some());
+
+        let before = block.last_update;
+        block.update_now();
+        let after = block.last_update;
+        assert_ne!(before, after);
     }
 }

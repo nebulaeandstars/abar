@@ -1,6 +1,7 @@
 use std::fmt;
 use std::time::{Duration, Instant};
 
+#[derive(Debug, PartialEq)]
 pub struct StatusBlock
 {
     pub name:            String,

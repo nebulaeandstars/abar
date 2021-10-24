@@ -1,7 +1,6 @@
 use std::fmt;
 use std::time::{Duration, Instant};
 
-#[derive(Debug, PartialEq)]
 pub struct StatusBlock
 {
     pub name:            String,
@@ -42,20 +41,23 @@ impl StatusBlock
     }
 
     /// Updates the StatusBlock immediately, ignoring the timer.
-    pub fn update_now(&mut self)
+    pub fn update_now(&mut self) { self.manual_update((self.command)()) }
+
+    /// Updates the StatusBlock immediately, ignoring the timer.
+    pub fn manual_update(&mut self, new: String)
     {
-        let mut out = (self.command)();
+        let mut new = (self.command)();
 
         if let Some(max) = self.max_size {
-            out.truncate(max);
+            new.truncate(max);
         }
         if let Some(min) = self.min_size {
-            if out.len() < min {
-                out.push_str(&" ".repeat(min - out.len()))
+            if new.len() < min {
+                new.push_str(&" ".repeat(min - new.len()))
             }
         }
 
-        self.cache = out;
+        self.cache = new;
         self.last_update = Some(Instant::now());
     }
 }

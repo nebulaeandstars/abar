@@ -42,7 +42,7 @@ struct Worker
     handle: Option<JoinHandle<()>>,
 }
 
-enum Message
+pub enum Message
 {
     Job(JobPacket),
     Terminate,
@@ -50,19 +50,20 @@ enum Message
 
 pub struct JobPacket
 {
-    name: &'static str,
-    job:  fn() -> String,
+    pub id:  String,
+    pub job: fn() -> String,
 }
 
 pub struct ResultPacket
 {
-    name:   &'static str,
-    result: String,
+    pub id:     String,
+    pub result: String,
 }
 
 type ResultsSender = mpsc::Sender<ResultPacket>;
+pub type ResultsReceiver = mpsc::Receiver<ResultPacket>;
 
-type JobsSender = spmc::Sender<Message>;
+pub type JobsSender = spmc::Sender<Message>;
 type JobsReceiver = spmc::Receiver<Message>;
 
 impl Worker
@@ -79,8 +80,8 @@ impl Worker
             let message = rx.recv().unwrap();
 
             match message {
-                Message::Job(JobPacket { name, job }) =>
-                    tx.send(ResultPacket { name, result: job() }).unwrap(),
+                Message::Job(JobPacket { id, job }) =>
+                    tx.send(ResultPacket { id, result: job() }).unwrap(),
                 Message::Terminate => break,
             }
         }
@@ -129,8 +130,8 @@ mod tests
 
         jobs_tx
             .send(Message::Job(JobPacket {
-                name: "test",
-                job:  || String::from("the test worked :)"),
+                id:  String::from("test"),
+                job: || String::from("the test worked :)"),
             }))
             .unwrap();
 
@@ -148,8 +149,8 @@ mod tests
         let mut pool = ThreadPool::new(4, results_tx);
 
         pool.execute(JobPacket {
-            name: "test1",
-            job:  || String::from("test1"),
+            id:  String::from("test"),
+            job: || String::from("test1"),
         });
 
         let result = results_rx.recv().unwrap().result;

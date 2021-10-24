@@ -43,7 +43,18 @@ impl StatusBlock
     /// Updates the StatusBlock immediately, ignoring the timer.
     pub fn update_now(&mut self)
     {
-        self.cache = (self.command)();
+        let mut out = (self.command)();
+
+        if let Some(max) = self.max_size {
+            out.truncate(max);
+        }
+        if let Some(min) = self.min_size {
+            if out.len() < min {
+                out.push_str(&" ".repeat(min - out.len()))
+            }
+        }
+
+        self.cache = out;
         self.last_update = Some(Instant::now());
     }
 }
@@ -146,5 +157,27 @@ mod tests
         block.update_now();
         let after = block.last_update;
         assert_ne!(before, after);
+    }
+
+    #[test]
+    fn max_size_is_respected()
+    {
+        let mut block = StatusBlock::default();
+        block.command = || String::from("a very long string");
+        block.max_size = Some(10);
+
+        block.update_now();
+        assert_eq!(block.to_string(), "a very lon");
+    }
+
+    #[test]
+    fn min_size_is_respected()
+    {
+        let mut block = StatusBlock::default();
+        block.command = || String::from("a short string");
+        block.min_size = Some(20);
+
+        block.update_now();
+        assert_eq!(block.to_string(), "a short string      ");
     }
 }

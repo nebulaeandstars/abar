@@ -1,3 +1,5 @@
+use std::fmt;
+
 use super::statusblock::StatusBlock;
 
 pub struct StatusBar
@@ -23,6 +25,19 @@ impl Default for StatusBar
     }
 }
 
+impl fmt::Display for StatusBar
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
+        let mut out = String::new();
+
+        self.blocks.iter().for_each(|block| out.push_str(&block.to_string()));
+
+        write!(f, "{}", out)
+    }
+}
+
+
 #[cfg(test)]
 mod tests
 {
@@ -36,5 +51,21 @@ mod tests
         assert_eq!(bar.delimiter, "");
         assert_eq!(bar.left_buffer, "");
         assert_eq!(bar.right_buffer, "");
+    }
+
+    #[test]
+    fn display_draws_blocks()
+    {
+        let mut bar = StatusBar::default();
+
+        let mut block1 = StatusBlock::default();
+        let mut block2 = StatusBlock::default();
+        block1.cache = String::from("test1");
+        block2.cache = String::from("test2");
+
+        bar.blocks.push(block1);
+        bar.blocks.push(block2);
+
+        assert_eq!(bar.to_string(), "test1test2");
     }
 }

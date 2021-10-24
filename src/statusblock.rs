@@ -1,3 +1,4 @@
+use std::fmt;
 use std::time::{Duration, Instant};
 
 pub struct StatusBlock
@@ -27,6 +28,14 @@ impl Default for StatusBlock
     }
 }
 
+impl fmt::Display for StatusBlock
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
+        write!(f, "{}", self.cache)
+    }
+}
+
 #[cfg(test)]
 mod tests
 {
@@ -46,5 +55,13 @@ mod tests
         assert_eq!(block.name, "");
         assert_eq!(block.cache, "");
         assert_eq!((block.command)(), "");
+    }
+
+    #[test]
+    fn test_statusblock_display()
+    {
+        let mut block = StatusBlock::default();
+        block.cache = String::from("test");
+        assert_eq!(block.to_string(), "test");
     }
 }

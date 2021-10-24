@@ -17,8 +17,11 @@ impl StatusBlock
     /// Returns whether the StatusBlock is due to be updated.
     pub fn needs_update(&self) -> bool
     {
-        if self.last_update.is_none() || self.update_interval.is_none() {
-            self.update_interval.is_some()
+        if self.last_update.is_none() {
+            true
+        }
+        else if self.update_interval.is_none() {
+            false
         }
         else {
             let now = Instant::now();
@@ -103,6 +106,20 @@ mod tests
 
         block.update();
         assert_eq!(block.to_string(), "test");
+    }
+
+    #[test]
+    fn update_does_not_trigger_if_not_needed()
+    {
+        let mut block = StatusBlock::default();
+        block.update();
+
+        let interval = Duration::from_secs(60);
+        block.update_interval = Some(interval);
+        block.command = || String::from("test");
+
+        block.update();
+        assert_ne!(block.to_string(), "test");
     }
 
     #[test]

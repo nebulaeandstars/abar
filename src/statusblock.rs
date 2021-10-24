@@ -75,14 +75,7 @@ mod tests
     use super::*;
 
     #[test]
-    fn it_works()
-    {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-
-    #[test]
-    fn test_statusblock_default()
+    fn default_has_correct_fields()
     {
         let block = StatusBlock::default();
         assert_eq!(block.name, "");
@@ -91,7 +84,7 @@ mod tests
     }
 
     #[test]
-    fn test_statusblock_display()
+    fn display_draws_the_cache()
     {
         let mut block = StatusBlock::default();
         block.cache = String::from("test");
@@ -99,7 +92,7 @@ mod tests
     }
 
     #[test]
-    fn test_statusblock_update()
+    fn update_changes_cache_if_needed()
     {
         let mut block = StatusBlock::default();
         let interval = Duration::from_nanos(1);
@@ -113,7 +106,7 @@ mod tests
     }
 
     #[test]
-    fn test_statusblock_update_now()
+    fn update_now_changes_cache()
     {
         let mut block = StatusBlock::default();
         block.command = || String::from("test");
@@ -123,7 +116,7 @@ mod tests
     }
 
     #[test]
-    fn test_statusblock_last_update_is_changed()
+    fn last_update_is_changed_on_update()
     {
         let mut block = StatusBlock::default();
         assert_eq!(block.last_update, None);

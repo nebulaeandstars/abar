@@ -32,10 +32,17 @@ impl fmt::Display for StatusBar
         let mut out = self.left_buffer.clone();
 
         self.blocks.iter().enumerate().for_each(|(i, block)| {
+            let cache = block.to_string();
+
+            if cache.is_empty() && self.hide_empty_modules {
+                return;
+            }
+
             if i > 0 && i < self.blocks.len() {
                 out.push_str(&self.delimiter);
             }
-            out.push_str(&block.to_string())
+
+            out.push_str(&cache);
         });
         out.push_str(&self.right_buffer);
 
@@ -92,5 +99,49 @@ mod tests
         bar.blocks.push(block2);
 
         assert_eq!(bar.to_string(), " >>> test1 | test2 <<< ");
+    }
+
+    #[test]
+    fn display_draws_empty_blocks_if_needed()
+    {
+        let mut bar = StatusBar::default();
+        bar.delimiter = String::from(" | ");
+        bar.left_buffer = String::from(" >>> ");
+        bar.right_buffer = String::from(" <<< ");
+        bar.hide_empty_modules = false;
+
+        let mut block1 = StatusBlock::default();
+        let block2 = StatusBlock::default();
+        let mut block3 = StatusBlock::default();
+        block1.cache = String::from("test1");
+        block3.cache = String::from("test3");
+
+        bar.blocks.push(block1);
+        bar.blocks.push(block2);
+        bar.blocks.push(block3);
+
+        assert_eq!(bar.to_string(), " >>> test1 |  | test3 <<< ");
+    }
+
+    #[test]
+    fn display_ignores_empty_blocks_if_needed()
+    {
+        let mut bar = StatusBar::default();
+        bar.delimiter = String::from(" | ");
+        bar.left_buffer = String::from(" >>> ");
+        bar.right_buffer = String::from(" <<< ");
+        bar.hide_empty_modules = true;
+
+        let mut block1 = StatusBlock::default();
+        let block2 = StatusBlock::default();
+        let mut block3 = StatusBlock::default();
+        block1.cache = String::from("test1");
+        block3.cache = String::from("test3");
+
+        bar.blocks.push(block1);
+        bar.blocks.push(block2);
+        bar.blocks.push(block3);
+
+        assert_eq!(bar.to_string(), " >>> test1 | test3 <<< ");
     }
 }

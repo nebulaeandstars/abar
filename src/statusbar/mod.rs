@@ -1,6 +1,8 @@
 mod builder;
 
+use std::collections::BinaryHeap;
 use std::fmt;
+use std::time::{Duration, Instant};
 
 pub use builder::StatusBarBuilder;
 
@@ -13,6 +15,7 @@ pub struct StatusBar {
     pub left_buffer:        String,
     pub right_buffer:       String,
     pub hide_empty_modules: bool,
+    update_queue:           BinaryHeap<(Instant, usize)>,
 }
 
 impl StatusBar {
@@ -21,17 +24,21 @@ impl StatusBar {
             block.attach_threadpool(pool);
         }
     }
-}
 
-impl Default for StatusBar {
-    fn default() -> Self {
-        Self {
-            blocks:             Vec::new(),
-            delimiter:          String::new(),
-            left_buffer:        String::new(),
-            right_buffer:       String::new(),
-            hide_empty_modules: true,
-        }
+    pub fn time_until_next_update(&self) -> Option<Duration> {
+        let now = Instant::now();
+
+        let next_update =
+            self.blocks.iter().filter_map(|block| block.next_update()).min();
+
+        next_update.map(|instant| {
+            if instant > now {
+                instant - now
+            }
+            else {
+                Duration::from_secs(0)
+            }
+        })
     }
 }
 
@@ -66,7 +73,7 @@ mod tests {
 
     #[test]
     fn default_has_correct_fields() {
-        let bar = StatusBar::default();
+        let bar = StatusBarBuilder::default().build();
         assert!(bar.blocks.is_empty());
         assert_eq!(bar.delimiter, "");
         assert_eq!(bar.left_buffer, "");

@@ -1,19 +1,27 @@
 mod config;
 mod utils;
 
-use std::thread;
-use std::time::Duration;
-
 use abar::threadpool::ThreadPool;
 
 fn main() {
-    let threadpool = ThreadPool::new(4);
+    let (monitor_tx, monitor_rx) = flume::bounded(100);
+
+    let threadpool = ThreadPool::new(4, monitor_tx);
     let statusbar = config::bar();
 
     statusbar.attach_threadpool(&threadpool);
 
     loop {
         println!("{}", statusbar);
-        thread::sleep(Duration::from_millis(500));
+
+        if let Ok(()) = monitor_rx.try_recv() {
+            continue;
+        }
+        else if let Some(time) = statusbar.time_until_next_update() {
+            let _ = monitor_rx.recv_timeout(time);
+        }
+        else {
+            monitor_rx.recv().unwrap();
+        }
     }
 }

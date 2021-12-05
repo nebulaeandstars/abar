@@ -1,14 +1,12 @@
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
-pub struct ThreadPool
-{
+pub struct ThreadPool {
     workers: Vec<Worker>,
     jobs_tx: JobsSender,
 }
 
-impl ThreadPool
-{
+impl ThreadPool {
     /// Returns a new ThreadPool with the given number of threads.
     ///
     /// size -> The number of threads in the pool.
@@ -16,8 +14,7 @@ impl ThreadPool
     /// # Panics
     ///
     /// Will panic if the number of threads is 0.
-    pub fn new(size: usize, results_tx: ResultsSender) -> Self
-    {
+    pub fn new(size: usize, results_tx: ResultsSender) -> Self {
         assert!(size > 0,);
 
         let (jobs_tx, jobs_rx) = spmc::channel();
@@ -29,53 +26,45 @@ impl ThreadPool
         ThreadPool { workers, jobs_tx }
     }
 
-    pub fn execute(&mut self, job: JobPacket)
-    {
+    pub fn execute(&mut self, job: JobPacket) {
         let message = Message::Job(job);
         self.jobs_tx.send(message).unwrap();
     }
 }
 
-struct Worker
-{
+struct Worker {
     id:     usize,
     handle: Option<JoinHandle<()>>,
 }
 
-pub enum Message
-{
+pub enum Message {
     Job(JobPacket),
     Terminate,
 }
 
-pub struct JobPacket
-{
+pub struct JobPacket {
     pub id:  String,
     pub job: fn() -> String,
 }
 
-pub struct ResultPacket
-{
+pub struct ResultPacket {
     pub id:     String,
     pub result: String,
 }
 
-type ResultsSender = mpsc::Sender<ResultPacket>;
+pub type ResultsSender = mpsc::Sender<ResultPacket>;
 pub type ResultsReceiver = mpsc::Receiver<ResultPacket>;
 
 pub type JobsSender = spmc::Sender<Message>;
-type JobsReceiver = spmc::Receiver<Message>;
+pub type JobsReceiver = spmc::Receiver<Message>;
 
-impl Worker
-{
-    pub fn new(id: usize, rx: JobsReceiver, tx: ResultsSender) -> Self
-    {
+impl Worker {
+    pub fn new(id: usize, rx: JobsReceiver, tx: ResultsSender) -> Self {
         let handle = Some(thread::spawn(move || Self::listen(id, rx, tx)));
         Worker { id, handle }
     }
 
-    fn listen(id: usize, rx: JobsReceiver, tx: ResultsSender)
-    {
+    fn listen(id: usize, rx: JobsReceiver, tx: ResultsSender) {
         loop {
             let message = rx.recv().unwrap();
 
@@ -88,10 +77,8 @@ impl Worker
     }
 }
 
-impl Drop for ThreadPool
-{
-    fn drop(&mut self)
-    {
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
         for _ in &self.workers {
             self.jobs_tx.send(Message::Terminate).unwrap();
         }
@@ -106,13 +93,11 @@ impl Drop for ThreadPool
 
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use super::*;
 
     #[test]
-    fn workers_can_terminate()
-    {
+    fn workers_can_terminate() {
         let (mut jobs_tx, jobs_rx) = spmc::channel();
         let (results_tx, _) = mpsc::channel();
         let worker = Worker::new(0, jobs_rx, results_tx);
@@ -122,8 +107,7 @@ mod tests
     }
 
     #[test]
-    fn workers_return_correct_values()
-    {
+    fn workers_return_correct_values() {
         let (mut jobs_tx, jobs_rx) = spmc::channel();
         let (results_tx, results_rx) = mpsc::channel();
         let worker = Worker::new(0, jobs_rx, results_tx);
@@ -143,8 +127,7 @@ mod tests
     }
 
     #[test]
-    fn pool_returns_correct_values()
-    {
+    fn pool_returns_correct_values() {
         let (results_tx, results_rx) = mpsc::channel();
         let mut pool = ThreadPool::new(4, results_tx);
 

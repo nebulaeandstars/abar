@@ -103,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn cache_does_not_update_when_update_interval_is_none() {
+    fn cache_does_not_update_when_interval_is_none() {
         let mut cache = TimedCache::new(None, Instant::now);
         let first_value = *cache.get();
 

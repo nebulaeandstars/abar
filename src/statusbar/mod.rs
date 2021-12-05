@@ -16,8 +16,8 @@ pub struct StatusBar {
 }
 
 impl StatusBar {
-    pub fn attach_threadpool(&mut self, pool: &ThreadPool) {
-        for block in &mut self.blocks {
+    pub fn attach_threadpool(&self, pool: &ThreadPool<String>) {
+        for block in &self.blocks {
             block.attach_threadpool(pool);
         }
     }

@@ -1,66 +1,146 @@
 use std::time::{Duration, Instant};
 
-use crate::threadpool::{JobsSender, ResultsReceiver};
+use crate::threadpool::{
+    JobPacket, JobsSender, Message, ResultsReceiver, ResultsSender, ThreadPool,
+};
 
 pub struct TimedCache<T> {
-    value:           Option<T>,
+    value:           T,
     function:        fn() -> T,
-    last_update:     Instant,
+    last_update:     Option<Instant>,
     update_interval: Option<Duration>,
-    jobs_tx:         Option<JobsSender>,
-    results_rx:      Option<ResultsReceiver>,
+    jobs_tx:         Option<JobsSender<T>>,
+    results_tx:      Option<ResultsSender<T>>,
+    results_rx:      Option<ResultsReceiver<T>>,
+    waiting:         bool,
+}
+
+impl<T: Default> TimedCache<T> {
+    pub fn new(update_interval: Option<Duration>, f: fn() -> T) -> Self {
+        Self {
+            value: T::default(),
+            function: f,
+            last_update: None,
+            update_interval,
+            jobs_tx: None,
+            results_tx: None,
+            results_rx: None,
+            waiting: false,
+        }
+    }
 }
 
 impl<T> TimedCache<T> {
-    pub fn new(update_interval: Option<Duration>, f: fn() -> T) -> Self {
+    pub fn with_initial_value(
+        initial: T, update_interval: Option<Duration>, f: fn() -> T,
+    ) -> Self {
         Self {
-            value: None,
+            value: initial,
             function: f,
-            last_update: Instant::now(),
+            last_update: None,
             update_interval,
             jobs_tx: None,
+            results_tx: None,
             results_rx: None,
+            waiting: false,
         }
     }
 
     pub fn get(&mut self) -> &T {
         self.update();
-        self.value.as_ref().unwrap()
+        &self.value
     }
 
     pub fn get_mut(&mut self) -> &mut T {
         self.update();
-        self.value.as_mut().unwrap()
+        &mut self.value
     }
 
     pub fn update(&mut self) {
-        let now = Instant::now();
-        let time_in_cache = now.duration_since(self.last_update);
+        match self.last_update {
+            Some(update) => {
+                let now = Instant::now();
+                let time_in_cache =
+                    now.duration_since(self.last_update.unwrap());
 
-        let time_for_update = self.update_interval.is_some()
-            && time_in_cache > self.update_interval.unwrap();
+                let time_for_update = self.update_interval.is_some()
+                    && time_in_cache > self.update_interval.unwrap();
 
-        if self.value.is_none() || time_for_update {
-            self.update_now();
+                if time_for_update {
+                    self.update_now();
+                }
+            },
+            None => self.update_now(),
         }
     }
 
     pub fn update_now(&mut self) {
-        let value = (self.function)();
-        self.value = Some(value);
-        self.last_update = Instant::now();
+        if self.waiting && self.results_rx.is_some() {
+            let packet = self.results_rx.as_ref().unwrap().try_recv();
+
+            if let Ok(packet) = packet {
+                self.overwrite(packet.result);
+                return;
+            }
+        }
+
+        match &self.jobs_tx {
+            // If there's no threadpool, update now.
+            None => {
+                let value = (self.function)();
+                self.overwrite(value)
+            },
+            // Otherwise, create a job.
+            Some(tx) => {
+                let job = JobPacket {
+                    job:       self.function,
+                    return_tx: self.results_tx.as_ref().unwrap().clone(),
+                };
+
+                // Try to send the job as a message
+                let result = tx.send(Message::Job(job));
+
+                // If the threadpool has disconnected, go back to
+                // single-threaded mode.
+                if result.is_err() {
+                    self.jobs_tx = None;
+                    self.results_tx = None;
+                    self.results_rx = None;
+                }
+                else {
+                    self.waiting = true;
+                }
+            },
+        }
+    }
+
+    pub fn attach_threadpool(&mut self, pool: &ThreadPool<T>) {
+        let jobs_tx = pool.jobs_tx.clone();
+        let (results_tx, results_rx) = flume::bounded(1);
+
+        self.jobs_tx = Some(jobs_tx);
+        self.results_tx = Some(results_tx);
+        self.results_rx = Some(results_rx);
+    }
+
+    pub fn overwrite(&mut self, value: T) {
+        self.value = value;
+        self.last_update = Some(Instant::now());
+        self.waiting = false;
     }
 }
 
 impl<T: Clone + Default> Default for TimedCache<T> {
     fn default() -> Self {
         Self {
-            value:           None,
+            value:           T::default(),
             function:        T::default,
-            last_update:     Instant::now(),
+            last_update:     None,
             update_interval: None,
             jobs_tx:         None,
+            results_tx:      None,
             results_rx:      None,
+            waiting:         false,
         }
     }
 }
@@ -72,7 +152,8 @@ mod tests {
     #[test]
     fn cache_evaluates_on_get() {
         let interval = Duration::from_secs(1);
-        let mut cache = TimedCache::new(Some(interval), || 1 + 1);
+        let mut cache =
+            TimedCache::with_initial_value(0, Some(interval), || 1 + 1);
 
         assert_eq!(*cache.get(), 2);
     }
@@ -80,7 +161,11 @@ mod tests {
     #[test]
     fn cache_evaluates_after_update_interval() {
         let interval = Duration::from_millis(100);
-        let mut cache = TimedCache::new(Some(interval), Instant::now);
+        let mut cache = TimedCache::with_initial_value(
+            Instant::now(),
+            Some(interval),
+            Instant::now,
+        );
 
         let first_value = *cache.get();
 
@@ -94,7 +179,11 @@ mod tests {
     #[test]
     fn cache_evaluates_when_forced() {
         let interval = Duration::from_millis(100);
-        let mut cache = TimedCache::new(Some(interval), Instant::now);
+        let mut cache = TimedCache::with_initial_value(
+            Instant::now(),
+            Some(interval),
+            Instant::now,
+        );
 
         let first_value = *cache.get();
 
@@ -104,7 +193,8 @@ mod tests {
 
     #[test]
     fn cache_does_not_update_when_interval_is_none() {
-        let mut cache = TimedCache::new(None, Instant::now);
+        let mut cache =
+            TimedCache::with_initial_value(Instant::now(), None, Instant::now);
         let first_value = *cache.get();
 
         assert_eq!(first_value, *cache.get());

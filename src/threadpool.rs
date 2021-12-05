@@ -1,31 +1,30 @@
-use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 
-pub type ResultsSender = flume::Sender<ResultPacket>;
-pub type ResultsReceiver = flume::Receiver<ResultPacket>;
-pub type JobsSender = flume::Sender<Message>;
-pub type JobsReceiver = flume::Receiver<Message>;
+pub type ResultsSender<T> = flume::Sender<ResultPacket<T>>;
+pub type ResultsReceiver<T> = flume::Receiver<ResultPacket<T>>;
+pub type JobsSender<T> = flume::Sender<Message<T>>;
+pub type JobsReceiver<T> = flume::Receiver<Message<T>>;
 
-pub struct ThreadPool {
-    pub jobs_tx: JobsSender,
+pub struct ThreadPool<T> {
+    pub jobs_tx: JobsSender<T>,
     workers:     Vec<Worker>,
 }
 
-pub enum Message {
-    Job(JobPacket),
+pub enum Message<T> {
+    Job(JobPacket<T>),
     Terminate,
 }
 
-pub struct JobPacket {
-    pub job:       fn() -> String,
-    pub return_tx: ResultsSender,
+pub struct JobPacket<T> {
+    pub job:       fn() -> T,
+    pub return_tx: ResultsSender<T>,
 }
 
-pub struct ResultPacket {
-    pub result: String,
+pub struct ResultPacket<T> {
+    pub result: T,
 }
 
-impl ThreadPool {
+impl<T: Send + 'static> ThreadPool<T> {
     /// Returns a new ThreadPool with the given number of threads.
     ///
     /// size -> The number of threads in the pool.
@@ -44,7 +43,7 @@ impl ThreadPool {
         ThreadPool { workers, jobs_tx }
     }
 
-    pub fn execute(&mut self, job: JobPacket) {
+    pub fn execute(&mut self, job: JobPacket<T>) {
         let message = Message::Job(job);
         self.jobs_tx.send(message).unwrap();
     }
@@ -56,12 +55,12 @@ struct Worker {
 }
 
 impl Worker {
-    pub fn new(id: usize, rx: JobsReceiver) -> Self {
+    pub fn new<T: Send + 'static>(id: usize, rx: JobsReceiver<T>) -> Self {
         let handle = Some(thread::spawn(move || Self::listen(rx)));
-        Worker { id, handle }
+        Self { id, handle }
     }
 
-    fn listen(rx: JobsReceiver) {
+    fn listen<T: Send + 'static>(rx: JobsReceiver<T>) {
         loop {
             let message = rx.recv().unwrap();
 
@@ -74,7 +73,7 @@ impl Worker {
     }
 }
 
-impl Drop for ThreadPool {
+impl<T> Drop for ThreadPool<T> {
     fn drop(&mut self) {
         for _ in &self.workers {
             self.jobs_tx.send(Message::Terminate).unwrap();
@@ -95,7 +94,8 @@ mod tests {
 
     #[test]
     fn workers_can_terminate() {
-        let (mut jobs_tx, jobs_rx) = flume::bounded(10);
+        let (mut jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
+            flume::bounded(10);
         let worker = Worker::new(0, jobs_rx);
 
         jobs_tx.send(Message::Terminate).unwrap();
@@ -104,7 +104,8 @@ mod tests {
 
     #[test]
     fn workers_return_correct_values() {
-        let (mut jobs_tx, jobs_rx) = flume::bounded(10);
+        let (mut jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
+            flume::bounded(10);
         let (results_tx, results_rx) = flume::bounded(10);
         let worker = Worker::new(0, jobs_rx);
 

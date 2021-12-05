@@ -8,7 +8,7 @@ use abar::threadpool::ThreadPool;
 
 fn main() {
     let threadpool = ThreadPool::new(4);
-    let mut statusbar = config::bar();
+    let statusbar = config::bar();
 
     statusbar.attach_threadpool(&threadpool);
 

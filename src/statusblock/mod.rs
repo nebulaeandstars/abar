@@ -10,6 +10,11 @@ use cache::TimedCache;
 
 use crate::threadpool::ThreadPool;
 
+/// Encapsulates a fn() -> String.
+///
+/// Each StatusBlock has a unique name, some command that returns a string, and
+/// a polling interval. They are responsible for updating themselves, and will
+/// do so automatically with or without access to a threadpool.
 #[derive(Default)]
 pub struct StatusBlock {
     pub name:     Option<String>,

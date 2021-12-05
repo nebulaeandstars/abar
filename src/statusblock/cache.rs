@@ -4,6 +4,10 @@ use crate::threadpool::{
     JobPacket, JobsSender, Message, ResultsReceiver, ResultsSender, ThreadPool,
 };
 
+/// A self-updating cache on a timer. Will probably need to be broken down.
+///
+/// TimedCaches will try to evaluate in the background if a JobsSender has been
+/// provided via attach_threadpool(). Otherwise, they'll evaluate locally.
 pub struct TimedCache<T> {
     value:           T,
     function:        fn() -> T,

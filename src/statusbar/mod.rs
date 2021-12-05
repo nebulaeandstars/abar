@@ -1,5 +1,9 @@
+mod builder;
+
 use std::fmt;
 use std::sync::mpsc;
+
+pub use builder::StatusBarBuilder;
 
 use super::statusblock::{StatusBlock, StatusBlockBuilder};
 use super::threadpool::{ResultsReceiver, ThreadPool};
@@ -10,22 +14,16 @@ pub struct StatusBar {
     pub left_buffer:        String,
     pub right_buffer:       String,
     pub hide_empty_modules: bool,
-    threadpool:             ThreadPool,
-    results_rx:             ResultsReceiver,
 }
 
 impl StatusBar {
     fn new(num_threads: usize) -> Self {
-        let (results_tx, results_rx) = mpsc::channel();
-
-        StatusBar {
-            blocks: Vec::new(),
-            delimiter: String::new(),
-            left_buffer: String::new(),
-            right_buffer: String::new(),
+        Self {
+            blocks:             Vec::new(),
+            delimiter:          String::new(),
+            left_buffer:        String::new(),
+            right_buffer:       String::new(),
             hide_empty_modules: true,
-            threadpool: ThreadPool::new(num_threads, results_tx),
-            results_rx,
         }
     }
 }
@@ -60,8 +58,6 @@ impl fmt::Display for StatusBar {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
-
     use super::*;
 
     #[test]

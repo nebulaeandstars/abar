@@ -26,8 +26,9 @@ impl StatusBlock {
         }
     }
 
-    pub fn attach_threadpool(&mut self, pool: &ThreadPool) {
-        let jobs_tx = pool.jobs_tx.clone();
+    pub fn attach_threadpool(&self, pool: &ThreadPool<String>) {
+        let mut cache = self.cache.lock().unwrap();
+        cache.attach_threadpool(pool);
     }
 
     /// Updates the StatusBlock iff it's scheduled to be updated.
@@ -66,8 +67,19 @@ impl StatusBlock {
 impl fmt::Display for StatusBlock {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut cache = self.cache.lock().unwrap();
-        cache.update();
-        write!(f, "{}", cache.get())
+        let out = cache.get_mut();
+
+        // TODO: Find out why this needs to be *here* and not in truncate_cache
+        if let Some(max) = self.max_size {
+            out.truncate(max);
+        }
+        if let Some(min) = self.min_size {
+            if out.len() < min {
+                out.push_str(&" ".repeat(min - out.len()))
+            }
+        }
+
+        write!(f, "{}", out)
     }
 }
 

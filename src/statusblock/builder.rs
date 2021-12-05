@@ -12,8 +12,9 @@ pub struct StatusBlockBuilder {
     pub update_interval: Option<Duration>,
 }
 
+#[allow(dead_code)]
 impl StatusBlockBuilder {
-    fn new(f: fn() -> String) -> Self {
+    pub fn new(f: fn() -> String) -> Self {
         Self { function: Some(f), ..Default::default() }
     }
 

@@ -1,7 +1,9 @@
 mod statusbar;
 mod statusblock;
-mod threadpool;
+pub mod threadpool;
+
+pub use statusbar::{StatusBar, StatusBarBuilder};
+pub use statusblock::{StatusBlock, StatusBlockBuilder};
 
 #[cfg(test)]
-mod tests
-{}
+mod tests {}

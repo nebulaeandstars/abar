@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn display_draws_the_cache() {
-        let mut block = StatusBlock::new(|| String::from("test"), None);
+        let block = StatusBlock::new(|| String::from("test"), None);
         assert_eq!(block.to_string(), "test");
     }
 

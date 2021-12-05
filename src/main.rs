@@ -6,13 +6,17 @@ use abar::threadpool::ThreadPool;
 fn main() {
     let (monitor_tx, monitor_rx) = flume::bounded(100);
 
-    let threadpool = ThreadPool::new(4, monitor_tx);
+    let threadpool = ThreadPool::new(2, monitor_tx);
     let statusbar = config::bar();
 
     statusbar.attach_threadpool(&threadpool);
 
     loop {
-        println!("{}", statusbar);
+        std::process::Command::new("xsetroot")
+            .arg("-name")
+            .arg(statusbar.to_string())
+            .output()
+            .unwrap();
 
         if let Ok(()) = monitor_rx.try_recv() {
             continue;

@@ -38,7 +38,7 @@ impl<T: Send + 'static> ThreadPool<T> {
         let (jobs_tx, jobs_rx) = flume::bounded(100);
 
         let workers = (0..size)
-            .map(|i| Worker::new(i, jobs_rx.clone(), monitor_tx.clone()))
+            .map(|_| Worker::new(jobs_rx.clone(), monitor_tx.clone()))
             .collect();
 
         ThreadPool { workers, jobs_tx }
@@ -51,17 +51,16 @@ impl<T: Send + 'static> ThreadPool<T> {
 }
 
 struct Worker {
-    id:     usize,
     handle: Option<JoinHandle<()>>,
 }
 
 impl Worker {
     pub fn new<T: Send + 'static>(
-        id: usize, jobs_rx: JobsReceiver<T>, monitor_tx: flume::Sender<()>,
+        jobs_rx: JobsReceiver<T>, monitor_tx: flume::Sender<()>,
     ) -> Self {
         let handle =
             Some(thread::spawn(move || Self::listen(jobs_rx, monitor_tx)));
-        Self { id, handle }
+        Self { handle }
     }
 
     fn listen<T: Send + 'static>(
@@ -111,8 +110,8 @@ mod tests {
         let (jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
             flume::bounded(10);
 
-        let (monitor_tx, monitor_rx) = flume::unbounded();
-        let worker = Worker::new(0, jobs_rx, monitor_tx);
+        let (monitor_tx, _monitor_rx) = flume::unbounded();
+        let worker = Worker::new(jobs_rx, monitor_tx);
 
         jobs_tx.send(Message::Terminate).unwrap();
         worker.handle.unwrap().join().unwrap();
@@ -125,7 +124,7 @@ mod tests {
         let (results_tx, results_rx) = flume::bounded(10);
 
         let (monitor_tx, _monitor_rx) = flume::unbounded();
-        let worker = Worker::new(0, jobs_rx, monitor_tx);
+        let worker = Worker::new(jobs_rx, monitor_tx);
 
         jobs_tx
             .send(Message::Job(JobPacket {

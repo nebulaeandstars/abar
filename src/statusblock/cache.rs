@@ -30,6 +30,7 @@ impl<T: Default> TimedCache<T> {
     }
 }
 
+#[allow(dead_code)]
 impl<T> TimedCache<T> {
     pub fn with_initial_value(
         initial: T, update_interval: Option<Duration>, f: fn() -> T,

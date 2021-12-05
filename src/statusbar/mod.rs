@@ -1,6 +1,5 @@
 mod builder;
 
-use std::collections::BinaryHeap;
 use std::fmt;
 use std::time::{Duration, Instant};
 
@@ -15,7 +14,6 @@ pub struct StatusBar {
     pub left_buffer:        String,
     pub right_buffer:       String,
     pub hide_empty_modules: bool,
-    update_queue:           BinaryHeap<(Instant, usize)>,
 }
 
 impl StatusBar {

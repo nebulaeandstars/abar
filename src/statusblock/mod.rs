@@ -17,7 +17,7 @@ pub struct StatusBlock {
 }
 
 impl StatusBlock {
-    fn new(f: fn() -> String, interval: Option<Duration>) -> Self {
+    pub fn new(f: fn() -> String, interval: Option<Duration>) -> Self {
         Self {
             cache: Mutex::new(TimedCache::new(interval, f)),
             ..Default::default()

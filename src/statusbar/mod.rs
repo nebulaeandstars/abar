@@ -5,6 +5,7 @@ use std::fmt;
 pub use builder::StatusBarBuilder;
 
 use super::statusblock::StatusBlock;
+use crate::threadpool::ThreadPool;
 
 pub struct StatusBar {
     pub blocks:             Vec<StatusBlock>,
@@ -12,6 +13,14 @@ pub struct StatusBar {
     pub left_buffer:        String,
     pub right_buffer:       String,
     pub hide_empty_modules: bool,
+}
+
+impl StatusBar {
+    pub fn attach_threadpool(&mut self, pool: &ThreadPool) {
+        for block in &mut self.blocks {
+            block.attach_threadpool(pool);
+        }
+    }
 }
 
 impl Default for StatusBar {

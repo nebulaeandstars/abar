@@ -1,14 +1,14 @@
-use std::sync::mpsc;
+use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 
-pub type ResultsSender = mpsc::Sender<ResultPacket>;
-pub type ResultsReceiver = mpsc::Receiver<ResultPacket>;
-pub type JobsSender = spmc::Sender<Message>;
-pub type JobsReceiver = spmc::Receiver<Message>;
+pub type ResultsSender = flume::Sender<ResultPacket>;
+pub type ResultsReceiver = flume::Receiver<ResultPacket>;
+pub type JobsSender = flume::Sender<Message>;
+pub type JobsReceiver = flume::Receiver<Message>;
 
 pub struct ThreadPool {
-    workers: Vec<Worker>,
-    jobs_tx: JobsSender,
+    pub jobs_tx: JobsSender,
+    workers:     Vec<Worker>,
 }
 
 pub enum Message {
@@ -36,7 +36,7 @@ impl ThreadPool {
     pub fn new(size: usize) -> Self {
         assert!(size > 0,);
 
-        let (jobs_tx, jobs_rx) = spmc::channel();
+        let (jobs_tx, jobs_rx) = flume::bounded(100);
 
         let workers =
             (0..size).map(|i| Worker::new(i, jobs_rx.clone())).collect();
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn workers_can_terminate() {
-        let (mut jobs_tx, jobs_rx) = spmc::channel();
+        let (mut jobs_tx, jobs_rx) = flume::bounded(10);
         let worker = Worker::new(0, jobs_rx);
 
         jobs_tx.send(Message::Terminate).unwrap();
@@ -104,8 +104,8 @@ mod tests {
 
     #[test]
     fn workers_return_correct_values() {
-        let (mut jobs_tx, jobs_rx) = spmc::channel();
-        let (results_tx, results_rx) = mpsc::channel();
+        let (mut jobs_tx, jobs_rx) = flume::bounded(10);
+        let (results_tx, results_rx) = flume::bounded(10);
         let worker = Worker::new(0, jobs_rx);
 
         jobs_tx
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn pool_returns_correct_values() {
-        let (results_tx, results_rx) = mpsc::channel();
+        let (results_tx, results_rx) = flume::bounded(10);
         let mut pool = ThreadPool::new(4);
 
         pool.execute(JobPacket {

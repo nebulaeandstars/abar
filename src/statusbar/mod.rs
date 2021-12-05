@@ -8,6 +8,10 @@ pub use builder::StatusBarBuilder;
 use super::statusblock::StatusBlock;
 use crate::threadpool::ThreadPool;
 
+/// Encapsulates a number of StatusBlocks.
+///
+/// Contains information re. how StatusBlocks should be formatted, delimited,
+/// rendered, etc. as well as methods that operate across all blocks at once.
 pub struct StatusBar {
     pub blocks:             Vec<StatusBlock>,
     pub delimiter:          String,

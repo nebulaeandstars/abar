@@ -20,8 +20,8 @@ impl StatusBlockBuilder {
 
     pub fn build(self) -> StatusBlock { self.into() }
 
-    pub fn name(mut self, name: String) -> Self {
-        self.name = Some(name);
+    pub fn name(mut self, name: &str) -> Self {
+        self.name = Some(String::from(name));
         self
     }
 
@@ -32,6 +32,12 @@ impl StatusBlockBuilder {
 
     pub fn max_size(mut self, max_size: usize) -> Self {
         self.max_size = Some(max_size);
+        self
+    }
+
+    pub fn size(mut self, size: usize) -> Self {
+        self.min_size = Some(size);
+        self.max_size = Some(size);
         self
     }
 

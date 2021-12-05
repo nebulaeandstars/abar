@@ -3,7 +3,7 @@ mod cache;
 
 use std::fmt;
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub use builder::StatusBlockBuilder;
 use cache::TimedCache;
@@ -24,6 +24,11 @@ impl StatusBlock {
             cache: Mutex::new(TimedCache::new(interval, f)),
             ..Default::default()
         }
+    }
+
+    pub fn next_update(&self) -> Option<Instant> {
+        let cache = self.cache.lock().unwrap();
+        cache.next_update()
     }
 
     pub fn attach_threadpool(&self, pool: &ThreadPool<String>) {

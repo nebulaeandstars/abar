@@ -46,6 +46,20 @@ impl<T> TimedCache<T> {
         }
     }
 
+    pub fn next_update(&self) -> Option<Instant> {
+        if !self.waiting {
+            match (self.update_interval, self.last_update) {
+                (Some(interval), Some(last_update)) =>
+                    Some(last_update + interval),
+                (None, Some(_)) => None,
+                (_, None) => Some(Instant::now()),
+            }
+        }
+        else {
+            None
+        }
+    }
+
     pub fn get(&mut self) -> &T {
         self.update();
         &self.value
@@ -57,11 +71,21 @@ impl<T> TimedCache<T> {
     }
 
     pub fn update(&mut self) {
+        if self.results_rx.is_some() && self.waiting {
+            let packet = self.results_rx.as_ref().unwrap().try_recv();
+
+            if let Ok(packet) = packet {
+                self.overwrite(packet.result);
+                self.waiting = false;
+            }
+
+            return;
+        }
+
         match self.last_update {
-            Some(update) => {
+            Some(last_update) => {
                 let now = Instant::now();
-                let time_in_cache =
-                    now.duration_since(self.last_update.unwrap());
+                let time_in_cache = now.duration_since(last_update);
 
                 let time_for_update = self.update_interval.is_some()
                     && time_in_cache > self.update_interval.unwrap();
@@ -75,15 +99,6 @@ impl<T> TimedCache<T> {
     }
 
     pub fn update_now(&mut self) {
-        if self.waiting && self.results_rx.is_some() {
-            let packet = self.results_rx.as_ref().unwrap().try_recv();
-
-            if let Ok(packet) = packet {
-                self.overwrite(packet.result);
-                return;
-            }
-        }
-
         match &self.jobs_tx {
             // If there's no threadpool, update now.
             None => {
@@ -126,7 +141,6 @@ impl<T> TimedCache<T> {
     pub fn overwrite(&mut self, value: T) {
         self.value = value;
         self.last_update = Some(Instant::now());
-        self.waiting = false;
     }
 }
 

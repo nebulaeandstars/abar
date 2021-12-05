@@ -38,7 +38,7 @@ fn blocks() -> Vec<StatusBlock> {
     let vanilla_example = StatusBlockBuilder::default()
         .name("vanilla_example")
         .function(rand_example)
-        .update_interval(Duration::from_millis(10))
+        .update_interval(Duration::from_millis(50))
         .size(6)
         .build();
 

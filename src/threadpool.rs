@@ -32,13 +32,14 @@ impl<T: Send + 'static> ThreadPool<T> {
     /// # Panics
     ///
     /// Will panic if the number of threads is 0.
-    pub fn new(size: usize) -> Self {
+    pub fn new(size: usize, monitor_tx: flume::Sender<()>) -> Self {
         assert!(size > 0,);
 
         let (jobs_tx, jobs_rx) = flume::bounded(100);
 
-        let workers =
-            (0..size).map(|i| Worker::new(i, jobs_rx.clone())).collect();
+        let workers = (0..size)
+            .map(|i| Worker::new(i, jobs_rx.clone(), monitor_tx.clone()))
+            .collect();
 
         ThreadPool { workers, jobs_tx }
     }
@@ -55,19 +56,32 @@ struct Worker {
 }
 
 impl Worker {
-    pub fn new<T: Send + 'static>(id: usize, rx: JobsReceiver<T>) -> Self {
-        let handle = Some(thread::spawn(move || Self::listen(rx)));
+    pub fn new<T: Send + 'static>(
+        id: usize, jobs_rx: JobsReceiver<T>, monitor_tx: flume::Sender<()>,
+    ) -> Self {
+        let handle =
+            Some(thread::spawn(move || Self::listen(jobs_rx, monitor_tx)));
         Self { id, handle }
     }
 
-    fn listen<T: Send + 'static>(rx: JobsReceiver<T>) {
+    fn listen<T: Send + 'static>(
+        jobs_rx: JobsReceiver<T>, monitor_tx: flume::Sender<()>,
+    ) {
         loop {
-            let message = rx.recv().unwrap();
+            let message = jobs_rx.recv().unwrap();
 
             match message {
                 Message::Terminate => break,
-                Message::Job(JobPacket { job, return_tx }) =>
-                    return_tx.send(ResultPacket { result: job() }).unwrap(),
+                Message::Job(JobPacket { job, return_tx }) => {
+                    // println!("worker {:?} got a job",
+                    // thread::current().id());
+                    return_tx.send(ResultPacket { result: job() }).unwrap();
+                    monitor_tx.send(()).unwrap();
+                    // println!(
+                    //     "worker {:?} finished a job",
+                    //     thread::current().id()
+                    // );
+                },
             }
         }
     }
@@ -94,9 +108,11 @@ mod tests {
 
     #[test]
     fn workers_can_terminate() {
-        let (mut jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
+        let (jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
             flume::bounded(10);
-        let worker = Worker::new(0, jobs_rx);
+
+        let (monitor_tx, monitor_rx) = flume::unbounded();
+        let worker = Worker::new(0, jobs_rx, monitor_tx);
 
         jobs_tx.send(Message::Terminate).unwrap();
         worker.handle.unwrap().join().unwrap();
@@ -104,10 +120,12 @@ mod tests {
 
     #[test]
     fn workers_return_correct_values() {
-        let (mut jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
+        let (jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
             flume::bounded(10);
         let (results_tx, results_rx) = flume::bounded(10);
-        let worker = Worker::new(0, jobs_rx);
+
+        let (monitor_tx, _monitor_rx) = flume::unbounded();
+        let worker = Worker::new(0, jobs_rx, monitor_tx);
 
         jobs_tx
             .send(Message::Job(JobPacket {
@@ -126,7 +144,9 @@ mod tests {
     #[test]
     fn pool_returns_correct_values() {
         let (results_tx, results_rx) = flume::bounded(10);
-        let mut pool = ThreadPool::new(4);
+
+        let (monitor_tx, _monitor_rx) = flume::unbounded();
+        let mut pool = ThreadPool::new(4, monitor_tx);
 
         pool.execute(JobPacket {
             job:       || String::from("test1"),

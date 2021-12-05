@@ -25,7 +25,7 @@ impl<T> TimedCache<T> {
 
     pub fn get(&mut self) -> &T {
         self.update();
-        self.value.as_ref().unwrap().clone()
+        self.value.as_ref().unwrap()
     }
 
     pub fn get_mut(&mut self) -> &mut T {
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn cache_evaluates_after_update_interval() {
         let interval = Duration::from_millis(100);
-        let mut cache = TimedCache::new(Some(interval), || Instant::now());
+        let mut cache = TimedCache::new(Some(interval), Instant::now);
 
         let first_value = *cache.get();
 
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn cache_evaluates_when_forced() {
         let interval = Duration::from_millis(100);
-        let mut cache = TimedCache::new(Some(interval), || Instant::now());
+        let mut cache = TimedCache::new(Some(interval), Instant::now);
 
         let first_value = *cache.get();
 
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn cache_does_not_update_when_update_interval_is_none() {
-        let mut cache = TimedCache::new(None, || Instant::now());
+        let mut cache = TimedCache::new(None, Instant::now);
         let first_value = *cache.get();
 
         assert_eq!(first_value, *cache.get());

@@ -11,7 +11,10 @@ pub struct StatusBarBuilder {
 
 #[allow(dead_code)]
 impl StatusBarBuilder {
-    pub fn new() -> Self { Self::default() }
+    pub fn new(blocks: Vec<StatusBlock>) -> Self {
+        Self { blocks, ..Default::default() }
+    }
+
     pub fn build(self) -> StatusBar { self.into() }
 
     pub fn blocks(mut self, blocks: Vec<StatusBlock>) -> Self {

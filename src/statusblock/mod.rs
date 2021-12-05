@@ -8,6 +8,8 @@ use std::time::Duration;
 pub use builder::StatusBlockBuilder;
 use cache::TimedCache;
 
+use crate::threadpool::ThreadPool;
+
 #[derive(Default)]
 pub struct StatusBlock {
     pub name:     Option<String>,
@@ -22,6 +24,10 @@ impl StatusBlock {
             cache: Mutex::new(TimedCache::new(interval, f)),
             ..Default::default()
         }
+    }
+
+    pub fn attach_threadpool(&mut self, pool: &ThreadPool) {
+        let jobs_tx = pool.jobs_tx.clone();
     }
 
     /// Updates the StatusBlock iff it's scheduled to be updated.

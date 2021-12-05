@@ -3,17 +3,10 @@ use std::time::Duration;
 
 use abar::{StatusBar, StatusBarBuilder, StatusBlock, StatusBlockBuilder};
 
-/// The number of blocks that can update concurrently. Most people won't need to
-/// change this, but bumping it up can cause a noticable difference in the
-/// initial load time if you have a lot of blocks. A value of 1 will disable
-/// concurrency, which is probably ok for most people.
-pub const NUM_THREADS: u8 = 2;
-
 /// Definition of the StatusBar
 pub fn bar() -> StatusBar {
     // All fields are optional; default refresh rate is 1hz
-    StatusBarBuilder::default()
-        .blocks(blocks())
+    StatusBarBuilder::new(blocks())
         .delimiter(" | ")
         .left_buffer(" >>> ")
         .right_buffer(" <<< ")
@@ -37,14 +30,14 @@ fn blocks() -> Vec<StatusBlock> {
     // Alternatively, you can use the built-in interface,
     let shell_example = StatusBlockBuilder::default()
         .name("shell_example")
-        .function(|| shell_example())
+        .function(shell_example)
         .update_interval(Duration::from_secs(2))
         .build();
 
     // or use vanilla Rust exclusively for the fastest bar out there.
     let vanilla_example = StatusBlockBuilder::default()
         .name("vanilla_example")
-        .function(|| rand_example())
+        .function(rand_example)
         .update_interval(Duration::from_millis(10))
         .size(6)
         .build();
@@ -52,7 +45,7 @@ fn blocks() -> Vec<StatusBlock> {
     // Slow blocks can be offloaded to the background if using worker threads.
     let slow_example = StatusBlockBuilder::default()
         .name("slow_example")
-        .function(|| slow_example())
+        .function(slow_example)
         .update_interval(Duration::from_secs(3))
         .size(12)
         .build();

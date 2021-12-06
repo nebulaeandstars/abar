@@ -11,12 +11,19 @@ fn main() {
 
     statusbar.attach_threadpool(&threadpool);
 
+    let mut bar = String::new();
     loop {
-        std::process::Command::new("xsetroot")
-            .arg("-name")
-            .arg(statusbar.to_string())
-            .output()
-            .unwrap();
+        let new_bar = statusbar.to_string();
+
+        if bar != new_bar {
+            bar = new_bar;
+
+            std::process::Command::new("xsetroot")
+                .arg("-name")
+                .arg(&bar)
+                .output()
+                .unwrap();
+        }
 
         if let Ok(()) = monitor_rx.try_recv() {
             continue;

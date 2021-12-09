@@ -1,6 +1,6 @@
 [package]
 name = "abar"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Laura Powles <laura@laurapowles.com>"]
 edition = "2021"
 
@@ -8,6 +8,15 @@ license-file = "LICENSE"
 description = "An interface for creating dynamic, \"blocks\"-style status strings"
 repository = "https://github.com/nebulaeandstars/abar"
 
+[lib]
+name = "abar"
+path = "src/lib.rs"
+
+[[bin]]
+name = "abar"
+path = "src/main.rs"
+
 [dependencies]
 rand = "0.8.4"
 flume = "0.10.9"
+getopts = "0.2.21"

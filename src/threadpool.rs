@@ -1,5 +1,7 @@
 use std::thread::{self, JoinHandle};
 
+use crate::monitor::{Command, MonitorSender};
+
 pub type ResultsSender<T> = flume::Sender<ResultPacket<T>>;
 pub type ResultsReceiver<T> = flume::Receiver<ResultPacket<T>>;
 pub type JobsSender<T> = flume::Sender<Message<T>>;
@@ -32,7 +34,7 @@ impl<T: Send + 'static> ThreadPool<T> {
     /// # Panics
     ///
     /// Will panic if the number of threads is 0.
-    pub fn new(size: usize, monitor_tx: flume::Sender<()>) -> Self {
+    pub fn new(size: usize, monitor_tx: MonitorSender) -> Self {
         assert!(size > 0,);
 
         let (jobs_tx, jobs_rx) = flume::bounded(100);
@@ -56,7 +58,7 @@ struct Worker {
 
 impl Worker {
     pub fn new<T: Send + 'static>(
-        jobs_rx: JobsReceiver<T>, monitor_tx: flume::Sender<()>,
+        jobs_rx: JobsReceiver<T>, monitor_tx: MonitorSender,
     ) -> Self {
         let handle =
             Some(thread::spawn(move || Self::listen(jobs_rx, monitor_tx)));
@@ -64,7 +66,7 @@ impl Worker {
     }
 
     fn listen<T: Send + 'static>(
-        jobs_rx: JobsReceiver<T>, monitor_tx: flume::Sender<()>,
+        jobs_rx: JobsReceiver<T>, monitor_tx: MonitorSender,
     ) {
         loop {
             let message = jobs_rx.recv().unwrap();
@@ -75,7 +77,7 @@ impl Worker {
                     // println!("worker {:?} got a job",
                     // thread::current().id());
                     return_tx.send(ResultPacket { result: job() }).unwrap();
-                    monitor_tx.send(()).unwrap();
+                    monitor_tx.send(Command::Refresh).unwrap();
                     // println!(
                     //     "worker {:?} finished a job",
                     //     thread::current().id()

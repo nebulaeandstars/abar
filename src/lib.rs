@@ -1,3 +1,4 @@
+pub mod monitor;
 mod statusbar;
 mod statusblock;
 pub mod threadpool;

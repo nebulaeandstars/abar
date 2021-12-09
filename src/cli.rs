@@ -38,4 +38,8 @@ pub fn process_args() {
         stream.write(&data.as_bytes()).unwrap();
         std::process::exit(0);
     }
+    else {
+        eprintln!("Could not connect to a running bar instance.");
+        std::process::exit(1);
+    }
 }

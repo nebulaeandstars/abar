@@ -7,21 +7,25 @@ pub type ResultsReceiver<T> = flume::Receiver<ResultPacket<T>>;
 pub type JobsSender<T> = flume::Sender<Message<T>>;
 pub type JobsReceiver<T> = flume::Receiver<Message<T>>;
 
+/// A pool of threads for executing work.
 pub struct ThreadPool<T> {
     pub jobs_tx: JobsSender<T>,
     workers:     Vec<Worker>,
 }
 
+/// Represents a message that Workers should respond to with a ResultPacket.
 pub enum Message<T> {
     Job(JobPacket<T>),
     Terminate,
 }
 
+/// Contains information required to complete a job.
 pub struct JobPacket<T> {
     pub job:       fn() -> T,
     pub return_tx: ResultsSender<T>,
 }
 
+/// Contains the result of an evaluated job.
 pub struct ResultPacket<T> {
     pub result: T,
 }
@@ -45,18 +49,16 @@ impl<T: Send + 'static> ThreadPool<T> {
 
         ThreadPool { workers, jobs_tx }
     }
-
-    pub fn execute(&mut self, job: JobPacket<T>) {
-        let message = Message::Job(job);
-        self.jobs_tx.send(message).unwrap();
-    }
 }
 
+/// Represents a single worker thread.
 struct Worker {
     handle: Option<JoinHandle<()>>,
 }
 
 impl Worker {
+    /// Creates a new Worker that will listen for jobs on jobs_rx, respond on
+    /// the given return channel, and notify the framework via monitor_tx.
     pub fn new<T: Send + 'static>(
         jobs_rx: JobsReceiver<T>, monitor_tx: MonitorSender,
     ) -> Self {
@@ -74,14 +76,8 @@ impl Worker {
             match message {
                 Message::Terminate => break,
                 Message::Job(JobPacket { job, return_tx }) => {
-                    // println!("worker {:?} got a job",
-                    // thread::current().id());
                     return_tx.send(ResultPacket { result: job() }).unwrap();
                     monitor_tx.send(Command::Refresh).unwrap();
-                    // println!(
-                    //     "worker {:?} finished a job",
-                    //     thread::current().id()
-                    // );
                 },
             }
         }
@@ -89,6 +85,8 @@ impl Worker {
 }
 
 impl<T> Drop for ThreadPool<T> {
+    // When the ThreadPool is dropped, tell each Worker to stop and collect
+    // their JoinHandles before continuing.
     fn drop(&mut self) {
         for _ in &self.workers {
             self.jobs_tx.send(Message::Terminate).unwrap();
@@ -121,8 +119,7 @@ mod tests {
 
     #[test]
     fn workers_return_correct_values() {
-        let (jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
-            flume::bounded(10);
+        let (jobs_tx, jobs_rx) = flume::bounded(10);
         let (results_tx, results_rx) = flume::bounded(10);
 
         let (monitor_tx, _monitor_rx) = flume::unbounded();
@@ -140,21 +137,5 @@ mod tests {
 
         jobs_tx.send(Message::Terminate).unwrap();
         worker.handle.unwrap().join().unwrap();
-    }
-
-    #[test]
-    fn pool_returns_correct_values() {
-        let (results_tx, results_rx) = flume::bounded(10);
-
-        let (monitor_tx, _monitor_rx) = flume::unbounded();
-        let mut pool = ThreadPool::new(4, monitor_tx);
-
-        pool.execute(JobPacket {
-            job:       || String::from("test1"),
-            return_tx: results_tx,
-        });
-
-        let result = results_rx.recv().unwrap().result;
-        assert_eq!(result, "test1");
     }
 }

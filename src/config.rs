@@ -3,7 +3,18 @@ use std::time::Duration;
 
 use abar::{StatusBar, StatusBarBuilder, StatusBlock, StatusBlockBuilder};
 
-/// Definition of the StatusBar
+/// abar responds to remote commands over TCP. This defines the port that will
+/// be used for both sending and receiving instructions.
+pub const PORT: usize = 2227;
+
+/// The number of concurrent worker threads that will be used to evaluate
+/// blocks. If your blocks are all very fast, you can leave this at 1. However,
+/// if you have some slower blocks (eg. that fetch data from the internet) you
+/// might want to bump this up to 2 or 3.
+pub const NUM_WORKERS: usize = 2;
+
+/// Define your StatusBar here. You probably just want to set the delimiters, or
+/// set hide_empty_modules.
 pub fn bar() -> StatusBar {
     // All fields are optional; default refresh rate is 1hz
     StatusBarBuilder::new(blocks())
@@ -20,21 +31,21 @@ pub fn bar() -> StatusBar {
 fn blocks() -> Vec<StatusBlock> {
     use crate::utils::run;
 
-    // You can use this wrapper to invoke shell functions.
+    // You can use this wrapper to invoke shell commands.
     let run_example = StatusBlockBuilder::default()
         .name("run_example")
         .function(|| run("echo hello"))
         .min_size(8)
         .build();
 
-    // Alternatively, you can use the built-in interface,
+    // Alternatively, you can use the built-in methods,
     let shell_example = StatusBlockBuilder::default()
         .name("shell_example")
         .function(shell_example)
-        .update_interval(Duration::from_secs(2))
+        .update_interval(Duration::from_secs(1))
         .build();
 
-    // or use vanilla Rust exclusively for the fastest bar out there.
+    // or use vanilla Rust exclusively.
     let vanilla_example = StatusBlockBuilder::default()
         .name("vanilla_example")
         .function(rand_example)
@@ -42,15 +53,7 @@ fn blocks() -> Vec<StatusBlock> {
         .size(6)
         .build();
 
-    // Slow blocks can be offloaded to the background if using worker threads.
-    let slow_example = StatusBlockBuilder::default()
-        .name("slow_example")
-        .function(slow_example)
-        .update_interval(Duration::from_secs(3))
-        .size(12)
-        .build();
-
-    // Finally, an example using a closure:
+    // Closures are allowed, of course.
     let closure_example = StatusBlockBuilder::default()
         .name("closure_example")
         .function(|| {
@@ -58,6 +61,14 @@ fn blocks() -> Vec<StatusBlock> {
             output.to_string()
         })
         .max_size(18)
+        .build();
+
+    // Slow blocks are unobtrusive if using multiple worker threads.
+    let slow_example = StatusBlockBuilder::default()
+        .name("slow_example")
+        .function(slow_example)
+        .update_interval(Duration::from_secs(3))
+        .size(12)
         .build();
 
     vec![
@@ -96,7 +107,7 @@ fn rand_example() -> String {
     format!("{}", random::<u16>())
 }
 
-/// This is very slow.
+/// This is similar to shell_example, but is intentionally very slow.
 fn slow_example() -> String {
     use std::thread;
 

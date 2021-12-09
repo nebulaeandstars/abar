@@ -21,6 +21,16 @@ pub struct StatusBar {
 }
 
 impl StatusBar {
+    pub fn update(&self, names: &[String]) {
+        self.blocks
+            .iter()
+            .filter(|block| block.name.is_some())
+            .filter(|block| names.contains(block.name.as_ref().unwrap()))
+            .for_each(|block| {
+                block.update_now();
+            })
+    }
+
     pub fn attach_threadpool(&self, pool: &ThreadPool<String>) {
         for block in &self.blocks {
             block.attach_threadpool(pool);

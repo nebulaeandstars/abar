@@ -1,10 +1,19 @@
+mod cli;
 mod config;
 mod utils;
 
+use std::thread;
+
+use abar::monitor::{Command, Monitor};
 use abar::threadpool::ThreadPool;
 
 fn main() {
+    cli::process_args();
+
     let (monitor_tx, monitor_rx) = flume::bounded(100);
+
+    let monitor = Monitor::new(monitor_tx.clone(), 2227);
+    thread::spawn(move || monitor.run());
 
     let threadpool = ThreadPool::new(2, monitor_tx);
     let statusbar = config::bar();
@@ -25,14 +34,25 @@ fn main() {
                 .unwrap();
         }
 
-        if let Ok(()) = monitor_rx.try_recv() {
-            continue;
-        }
-        else if let Some(time) = statusbar.time_until_next_update() {
-            let _ = monitor_rx.recv_timeout(time);
-        }
-        else {
-            monitor_rx.recv().unwrap();
+        let command: Option<Command> = {
+            // If there is an incoming command, return early.
+            if let Ok(command) = monitor_rx.try_recv() {
+                Some(command)
+            }
+            // Otherwise, wait until the next update.
+            else if let Some(time) = statusbar.time_until_next_update() {
+                monitor_rx.recv_timeout(time).ok()
+            }
+            // If there are no future updates, block until the next command.
+            else {
+                monitor_rx.recv().ok()
+            }
+        };
+
+        match command {
+            Some(Command::Update(names)) => statusbar.update(&names),
+            Some(Command::Shutdown) => break,
+            _ => (),
         }
     }
 }

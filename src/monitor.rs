@@ -20,10 +20,18 @@ pub struct Monitor {
 impl Monitor {
     /// Trt to bind to the given port and return a new Monitor.
     pub fn new(tx: MonitorSender, port: usize) -> Self {
-        let listener =
-            TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
+        let listener = TcpListener::bind(format!("127.0.0.1:{}", port));
 
-        Self { listener, tx }
+        if listener.is_err() {
+            eprintln!(
+                "Could not bind to port {}! Another bar instance is probably \
+                 running.",
+                port
+            );
+            std::process::exit(1);
+        }
+
+        Self { listener: listener.unwrap(), tx }
     }
 
     /// Listen for incoming connections, and pipe any received commands into

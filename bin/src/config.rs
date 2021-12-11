@@ -29,7 +29,7 @@ pub fn bar() -> StatusBar {
 /// String, and an optional update interval. If you haven't used Rust much
 /// before, I'd recommend copying the example syntax.
 fn blocks() -> Vec<StatusBlock> {
-    use crate::utils::run;
+    use abar::utils::run;
 
     // You can use this wrapper to invoke shell commands.
     let run_example = StatusBlockBuilder::default()

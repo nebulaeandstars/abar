@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 pub use builder::StatusBarBuilder;
 
 use super::statusblock::StatusBlock;
+use crate::monitor::{Command, MonitorReceiver};
 use crate::threadpool::ThreadPool;
 
 /// Encapsulates a number of StatusBlocks.
@@ -51,6 +52,41 @@ impl StatusBar {
                 Duration::from_secs(0)
             }
         })
+    }
+
+    pub fn run(self, draw_function: fn(&str), monitor_rx: MonitorReceiver) {
+        let mut bar = String::new();
+
+        loop {
+            // Update the bar, and draw it if necessary.
+            let new_bar = self.to_string();
+            if bar != new_bar {
+                bar = new_bar;
+                draw_function(&bar);
+            }
+
+            let command: Option<Command> = {
+                // If there is an incoming command, return early.
+                if let Ok(command) = monitor_rx.try_recv() {
+                    Some(command)
+                }
+                // Otherwise, wait until the next update.
+                else if let Some(time) = self.time_until_next_update() {
+                    monitor_rx.recv_timeout(time).ok()
+                }
+                // If there are no future updates, block until the next command.
+                else {
+                    monitor_rx.recv().ok()
+                }
+            };
+
+            // Finally, respond to any external commands that came in.
+            match command {
+                Some(Command::Update(names)) => self.update(&names),
+                Some(Command::Shutdown) => break,
+                Some(Command::Refresh) | None => (),
+            }
+        }
     }
 }
 

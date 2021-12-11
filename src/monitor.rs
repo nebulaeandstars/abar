@@ -1,8 +1,9 @@
 use std::io::Read;
 use std::net::TcpListener;
+use std::sync::mpsc;
 
-pub type MonitorSender = flume::Sender<Command>;
-pub type MonitorReceiver = flume::Receiver<Command>;
+pub type MonitorSender = mpsc::SyncSender<Command>;
+pub type MonitorReceiver = mpsc::Receiver<Command>;
 
 /// Represents a command that can be sent to the meta framework.
 pub enum Command {

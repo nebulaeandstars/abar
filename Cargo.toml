@@ -12,12 +12,6 @@ repository = "https://github.com/nebulaeandstars/abar"
 name = "abar"
 path = "src/lib.rs"
 
-[[bin]]
-name = "abar"
-path = "src/main.rs"
-
 [dependencies]
-rand = "0.8.4"
 flume = "0.10.9"
 getopts = "0.2.21"
-lazy_static = "1.4"

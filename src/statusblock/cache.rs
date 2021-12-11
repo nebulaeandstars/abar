@@ -1,3 +1,4 @@
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use crate::threadpool::{
@@ -136,7 +137,7 @@ impl<T> TimedCache<T> {
 
     pub fn attach_threadpool(&mut self, pool: &ThreadPool<T>) {
         let jobs_tx = pool.jobs_tx.clone();
-        let (results_tx, results_rx) = flume::bounded(1);
+        let (results_tx, results_rx) = mpsc::sync_channel(1);
 
         self.jobs_tx = Some(jobs_tx);
         self.results_tx = Some(results_tx);

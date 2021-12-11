@@ -13,5 +13,4 @@ name = "abar"
 path = "src/lib.rs"
 
 [dependencies]
-flume = "0.10.9"
 getopts = "0.2.21"

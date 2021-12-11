@@ -1,11 +1,12 @@
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use crate::monitor::{Command, MonitorSender};
 
-pub type ResultsSender<T> = flume::Sender<ResultPacket<T>>;
-pub type ResultsReceiver<T> = flume::Receiver<ResultPacket<T>>;
-pub type JobsSender<T> = flume::Sender<Message<T>>;
-pub type JobsReceiver<T> = flume::Receiver<Message<T>>;
+pub type ResultsSender<T> = mpsc::SyncSender<ResultPacket<T>>;
+pub type ResultsReceiver<T> = mpsc::Receiver<ResultPacket<T>>;
+pub type JobsSender<T> = mpsc::SyncSender<Message<T>>;
+pub type JobsReceiver<T> = mpsc::Receiver<Message<T>>;
 
 /// A pool of threads for executing work.
 pub struct ThreadPool<T> {
@@ -41,7 +42,8 @@ impl<T: Send + 'static> ThreadPool<T> {
     pub fn new(size: usize, monitor_tx: MonitorSender) -> Self {
         assert!(size > 0,);
 
-        let (jobs_tx, jobs_rx) = flume::bounded(100);
+        let (jobs_tx, jobs_rx) = mpsc::sync_channel(100);
+        let jobs_rx = Arc::new(Mutex::new(jobs_rx));
 
         let workers = (0..size)
             .map(|_| Worker::new(jobs_rx.clone(), monitor_tx.clone()))
@@ -60,7 +62,7 @@ impl Worker {
     /// Creates a new Worker that will listen for jobs on jobs_rx, respond on
     /// the given return channel, and notify the framework via monitor_tx.
     pub fn new<T: Send + 'static>(
-        jobs_rx: JobsReceiver<T>, monitor_tx: MonitorSender,
+        jobs_rx: Arc<Mutex<JobsReceiver<T>>>, monitor_tx: MonitorSender,
     ) -> Self {
         let handle =
             Some(thread::spawn(move || Self::listen(jobs_rx, monitor_tx)));
@@ -68,10 +70,10 @@ impl Worker {
     }
 
     fn listen<T: Send + 'static>(
-        jobs_rx: JobsReceiver<T>, monitor_tx: MonitorSender,
+        jobs_rx: Arc<Mutex<JobsReceiver<T>>>, monitor_tx: MonitorSender,
     ) {
         loop {
-            let message = jobs_rx.recv().unwrap();
+            let message = jobs_rx.lock().unwrap().recv().unwrap();
 
             match message {
                 Message::Terminate => break,
@@ -108,9 +110,10 @@ mod tests {
     #[test]
     fn workers_can_terminate() {
         let (jobs_tx, jobs_rx): (JobsSender<String>, JobsReceiver<String>) =
-            flume::bounded(10);
+            mpsc::sync_channel(10);
+        let jobs_rx = Arc::new(Mutex::new(jobs_rx));
 
-        let (monitor_tx, _monitor_rx) = flume::unbounded();
+        let (monitor_tx, _monitor_rx) = mpsc::sync_channel(10);
         let worker = Worker::new(jobs_rx, monitor_tx);
 
         jobs_tx.send(Message::Terminate).unwrap();
@@ -119,10 +122,11 @@ mod tests {
 
     #[test]
     fn workers_return_correct_values() {
-        let (jobs_tx, jobs_rx) = flume::bounded(10);
-        let (results_tx, results_rx) = flume::bounded(10);
+        let (jobs_tx, jobs_rx) = mpsc::sync_channel(10);
+        let (results_tx, results_rx) = mpsc::sync_channel(10);
+        let jobs_rx = Arc::new(Mutex::new(jobs_rx));
 
-        let (monitor_tx, _monitor_rx) = flume::unbounded();
+        let (monitor_tx, _monitor_rx) = mpsc::sync_channel(10);
         let worker = Worker::new(jobs_rx, monitor_tx);
 
         jobs_tx
